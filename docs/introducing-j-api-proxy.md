@@ -80,6 +80,38 @@ same pattern with `JmsProxy.wrap`, so the filter code remains the same even
 though the application is now talking to a message broker. The README includes
 complete, copyable examples for both adapters and their XA counterparts.
 
+Here is a small JDBC timing example. The filter records the elapsed time whether
+the database call succeeds or fails, then the wrapped data source is used as
+usual. The call to `executeQuery` is observed without wrapping the connection
+or statement by hand.
+
+```java
+import io.github.rrobetti.japiproxy.core.InvocationFilter;
+import io.github.rrobetti.japiproxy.jdbc.JdbcProxy;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import javax.sql.DataSource;
+
+InvocationFilter timingFilter = (invocation, chain) -> {
+    long started = System.nanoTime();
+    try {
+        return chain.proceed(invocation);
+    } finally {
+        System.out.printf("%s took %d ns%n", invocation.method().getName(),
+                System.nanoTime() - started);
+    }
+};
+
+DataSource dataSource = JdbcProxy.wrap(vendorDataSource, "orders-db", timingFilter);
+
+try (Connection connection = dataSource.getConnection();
+     Statement statement = connection.createStatement();
+     ResultSet resultSet = statement.executeQuery("select 1")) {
+    resultSet.next();
+}
+```
+
 Filters can simply observe calls, but they are not limited to observation. They
 can adjust an argument before the delegate receives it, replace a result, or
 choose not to continue a call. That makes the approach useful for carefully
@@ -111,6 +143,24 @@ For JDBC-focused observability, applications can use datasource-proxy alongside
 J API Proxy rather than choosing one instead of the other. This separation
 keeps J API Proxy small while allowing the same custom filter to work across
 database, messaging, and XA code.
+
+## A note about performance
+
+J API Proxy adds work to every intercepted call. Each call goes through a JDK
+dynamic proxy and the configured filter chain before it reaches the original
+object, and recursive wrapping means that this applies to calls on returned
+JDBC, JMS, and XA objects too. The cost depends on how frequently those methods
+are called, how many filters are installed, and what each filter does. A filter
+that logs, creates tracing data, or sends metrics can cost more than the proxy
+layer itself.
+
+For many database and broker operations, the network or the remote service is
+likely to dominate the total time, but that is not a guarantee. A high-volume
+local call path, a tight result-set loop, or an expensive filter can make the
+added overhead meaningful. Measure the application with its real filters and
+workload before using the proxy in a performance-sensitive path. Keep filters
+small, avoid unnecessary work for calls you do not need to observe, and use the
+proxy where the added visibility or control justifies the extra layer.
 
 ## Getting started
 
