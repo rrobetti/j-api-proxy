@@ -1,5 +1,7 @@
 # j-api-proxy (J API Proxy)
 
+[![Main CI](https://github.com/rrobetti/j-api-proxy/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/rrobetti/j-api-proxy/actions/workflows/main.yml)
+
 A small, general-purpose filter-chain core built on JDK dynamic proxies, plus recursive adapters
 that automatically apply it across a JDBC or Jakarta JMS object graph — including XA resources.
 

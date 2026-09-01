@@ -229,8 +229,10 @@ jobs:
                 -DgenerateBackupPoms=false
             git add -A
             git commit -m "Prepare for next development iteration ${NEXT}"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
+          # Always push the branch first so the tagged commit is reachable
+          # from the remote branch, then push the tag itself.
+          git push origin "HEAD:${GITHUB_REF_NAME}"
           git push origin "v${RELEASE}"
 
       # -----------------------------------------------------------------------
@@ -240,11 +242,15 @@ jobs:
         if: ${{ inputs.dry_run == false }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE: ${{ steps.versions.outputs.release }}
+          IS_PRERELEASE: ${{ steps.versions.outputs.is_prerelease }}
         run: |
-          gh release create "v${{ steps.versions.outputs.release }}" \
-            --title "v${{ steps.versions.outputs.release }}" \
-            --generate-notes \
-            ${{ steps.versions.outputs.is_prerelease == 'true' && '--prerelease' || '' }}
+          set -euo pipefail
+          args=(--title "v${RELEASE}" --generate-notes)
+          if [[ "${IS_PRERELEASE}" == "true" ]]; then
+            args+=(--prerelease)
+          fi
+          gh release create "v${RELEASE}" "${args[@]}"
 
       - name: Summary
         run: |
