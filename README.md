@@ -49,7 +49,7 @@ Core only (build your own adapter/SPI usage):
 <dependency>
   <groupId>io.github.rrobetti</groupId>
   <artifactId>j-api-proxy-core</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>0.1.0-alpha</version>
 </dependency>
 ```
 
@@ -59,7 +59,7 @@ JDBC adapter:
 <dependency>
   <groupId>io.github.rrobetti</groupId>
   <artifactId>j-api-proxy-jdbc</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>0.1.0-alpha</version>
 </dependency>
 ```
 
@@ -69,7 +69,7 @@ Jakarta JMS adapter:
 <dependency>
   <groupId>io.github.rrobetti</groupId>
   <artifactId>j-api-proxy-jms-jakarta</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>0.1.0-alpha</version>
 </dependency>
 ```
 
@@ -79,7 +79,7 @@ Convenience module (both adapters) or the BOM:
 <dependency>
   <groupId>io.github.rrobetti</groupId>
   <artifactId>j-api-proxy</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>0.1.0-alpha</version>
 </dependency>
 ```
 
@@ -89,7 +89,7 @@ Convenience module (both adapters) or the BOM:
     <dependency>
       <groupId>io.github.rrobetti</groupId>
       <artifactId>j-api-proxy-bom</artifactId>
-      <version>0.1.0-SNAPSHOT</version>
+      <version>0.1.0-alpha</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
