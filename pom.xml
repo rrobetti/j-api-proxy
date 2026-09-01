@@ -1,0 +1,27 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>io.github.rrobetti</groupId>
+  <artifactId>j-api-proxy-aggregator</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>j-api-proxy aggregator</name>
+
+  <licenses>
+    <license>
+      <name>Apache License 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <modules>
+    <module>j-api-proxy-parent</module>
+    <module>j-api-proxy-core</module>
+    <module>j-api-proxy-jdbc</module>
+    <module>j-api-proxy-jms-jakarta</module>
+    <module>j-api-proxy-bom</module>
+    <module>j-api-proxy</module>
+  </modules>
+</project>
