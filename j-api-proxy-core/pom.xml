@@ -10,6 +10,7 @@
   </parent>
   <artifactId>j-api-proxy-core</artifactId>
   <name>j-api-proxy core</name>
+  <description>Core proxy, filter chain and invocation model shared by all j-api-proxy modules.</description>
 
   <licenses>
     <license>

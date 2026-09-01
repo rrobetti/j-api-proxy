@@ -1,0 +1,263 @@
+# =============================================================================
+# Release Workflow — publish j-api-proxy to Sonatype Maven Central on command
+# =============================================================================
+#
+# OVERVIEW
+# --------
+# Triggered manually (Actions → "Release to Maven Central" → Run workflow) and
+# gated by the `release` GitHub environment, which is configured with @rrobetti
+# as a required reviewer. Nothing is built or published until that approval is
+# given.
+#
+# The job:
+#   1. Validates that all required secrets are configured (fast-fail)
+#   2. Checks out the repository
+#   3. Sets up JDK 17, Maven `settings.xml` credentials and the GPG key
+#   4. Computes the release version and the next development version
+#   5. Sets the release version in every pom.xml
+#   6. Builds and tests all modules
+#   7. Deploys all modules to Maven Central via Sonatype Central (-Prelease)
+#   8. Tags the release commit, bumps to the next -SNAPSHOT version and pushes
+#   9. Creates a GitHub Release with auto-generated notes
+#
+# VERSION SCHEME
+# --------------
+#   0.1.0-SNAPSHOT → release 0.1.0 → next development version 0.1.1-SNAPSHOT
+# Both values can be overridden with the `release_version` and
+# `next_development_version` inputs. Pre-release versions (anything with a
+# qualifier, e.g. 1.0.0-RC1) are published as GitHub pre-releases and do not
+# trigger a version bump or a commit back to the branch.
+#
+# REQUIRED GITHUB SECRETS
+# -----------------------
+#   SONATYPE_USERNAME   Sonatype Central user-token username (NOT the account name)
+#   SONATYPE_PASSWORD   Sonatype Central user-token password
+#   GPG_PRIVATE_KEY     ASCII-armored GPG private key
+#                       (gpg --armor --export-secret-keys KEY_ID)
+#   GPG_PASSPHRASE      Passphrase for the GPG key
+#
+# See docs/ci-cd.md for the full setup and operating instructions.
+#
+# =============================================================================
+
+name: Release to Maven Central
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run — build and version only, skip publishing and push'
+        required: false
+        default: false
+        type: boolean
+      release_version:
+        description: 'Release version override (e.g. 0.2.0). Blank = current pom version without -SNAPSHOT.'
+        required: false
+        default: ''
+        type: string
+      next_development_version:
+        description: 'Next development version override (e.g. 0.3.0-SNAPSHOT). Blank = auto-increment the patch.'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  release:
+    name: Release j-api-proxy
+    runs-on: ubuntu-latest
+    # Requires manual approval before the job starts. Configure the "release"
+    # environment in Settings → Environments with rrobetti as required reviewer.
+    environment: release
+    permissions:
+      contents: write   # push the version-bump commits, tags and GitHub release
+    concurrency:
+      group: release
+      cancel-in-progress: false
+
+    steps:
+      # -----------------------------------------------------------------------
+      # 1. Validate required secrets (fast-fail before any version changes)
+      # -----------------------------------------------------------------------
+      - name: Validate required secrets
+        if: ${{ inputs.dry_run == false }}
+        env:
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          missing=()
+          [[ -z "${SONATYPE_USERNAME}" ]] && missing+=("SONATYPE_USERNAME")
+          [[ -z "${SONATYPE_PASSWORD}" ]] && missing+=("SONATYPE_PASSWORD")
+          [[ -z "${GPG_PRIVATE_KEY}"   ]] && missing+=("GPG_PRIVATE_KEY")
+          [[ -z "${GPG_PASSPHRASE}"    ]] && missing+=("GPG_PASSPHRASE")
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "ERROR: the following required secrets are not configured:" >&2
+            printf '  - %s\n' "${missing[@]}" >&2
+            echo "See docs/ci-cd.md for setup instructions." >&2
+            exit 1
+          fi
+          echo "All required secrets are present."
+
+      # -----------------------------------------------------------------------
+      # 2. Checkout
+      # -----------------------------------------------------------------------
+      - name: Git checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # -----------------------------------------------------------------------
+      # 3. Java, Maven server credentials and GPG key
+      # -----------------------------------------------------------------------
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: 'temurin'
+          cache: maven
+          # The server id must match <publishingServerId>central</publishingServerId>
+          # configured on the central-publishing-maven-plugin.
+          server-id: central
+          server-username: SONATYPE_USERNAME
+          server-password: SONATYPE_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+
+      - name: Configure Git identity
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # -----------------------------------------------------------------------
+      # 4. Compute release and next development versions
+      # -----------------------------------------------------------------------
+      - name: Compute versions
+        id: versions
+        env:
+          RELEASE_INPUT: ${{ inputs.release_version }}
+          NEXT_INPUT: ${{ inputs.next_development_version }}
+        run: |
+          set -euo pipefail
+          CURRENT=$(mvn --batch-mode --no-transfer-progress -q \
+                        -Dexec.executable=echo -Dexec.args='${project.version}' \
+                        --non-recursive org.codehaus.mojo:exec-maven-plugin:3.5.0:exec)
+          echo "Current pom version: ${CURRENT}"
+
+          RELEASE="${RELEASE_INPUT}"
+          if [[ -z "${RELEASE}" ]]; then
+            RELEASE="${CURRENT%-SNAPSHOT}"
+          fi
+          if ! echo "${RELEASE}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "ERROR: '${RELEASE}' is not a valid semver release version." >&2
+            exit 1
+          fi
+
+          # A qualifier (e.g. 1.0.0-RC1) marks a pre-release: publish only, no bump.
+          IS_PRERELEASE=false
+          if echo "${RELEASE}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-'; then
+            IS_PRERELEASE=true
+          fi
+
+          NEXT="${NEXT_INPUT}"
+          if [[ "${IS_PRERELEASE}" == "false" && -z "${NEXT}" ]]; then
+            MAJOR="${RELEASE%%.*}"
+            REST="${RELEASE#*.}"
+            MINOR="${REST%%.*}"
+            PATCH="${REST#*.}"
+            NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))-SNAPSHOT"
+          fi
+          if [[ -n "${NEXT}" ]] && ! echo "${NEXT}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-SNAPSHOT$'; then
+            echo "ERROR: '${NEXT}' is not a valid next development version." >&2
+            exit 1
+          fi
+
+          echo "Release version: ${RELEASE}"
+          echo "Next development version: ${NEXT:-<none, pre-release>}"
+          {
+            echo "release=${RELEASE}"
+            echo "next=${NEXT}"
+            echo "is_prerelease=${IS_PRERELEASE}"
+          } >> "$GITHUB_OUTPUT"
+
+      # -----------------------------------------------------------------------
+      # 5. Set the release version in all pom.xml files
+      # -----------------------------------------------------------------------
+      - name: Set release version (${{ steps.versions.outputs.release }})
+        run: |
+          mvn --batch-mode --no-transfer-progress versions:set \
+              -DnewVersion=${{ steps.versions.outputs.release }} \
+              -DprocessAllModules=true \
+              -DgenerateBackupPoms=false
+
+      # -----------------------------------------------------------------------
+      # 6. Build and test all modules
+      # -----------------------------------------------------------------------
+      - name: Build and test all modules
+        run: mvn --batch-mode --no-transfer-progress clean verify -Dgpg.skip=true
+
+      # -----------------------------------------------------------------------
+      # 7. Deploy all modules to Maven Central
+      # -----------------------------------------------------------------------
+      - name: Deploy to Maven Central
+        if: ${{ inputs.dry_run == false }}
+        env:
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          mvn --batch-mode --no-transfer-progress deploy \
+              -DskipTests \
+              -Prelease
+
+      # -----------------------------------------------------------------------
+      # 8. Tag the release and bump to the next development version
+      # -----------------------------------------------------------------------
+      - name: Tag release and bump to next development version
+        if: ${{ inputs.dry_run == false }}
+        run: |
+          set -euo pipefail
+          RELEASE="${{ steps.versions.outputs.release }}"
+          NEXT="${{ steps.versions.outputs.next }}"
+          git add -A
+          git commit -m "Release ${RELEASE}"
+          git tag -a "v${RELEASE}" -m "Release ${RELEASE}"
+          if [[ -n "${NEXT}" ]]; then
+            mvn --batch-mode --no-transfer-progress versions:set \
+                -DnewVersion="${NEXT}" \
+                -DprocessAllModules=true \
+                -DgenerateBackupPoms=false
+            git add -A
+            git commit -m "Prepare for next development iteration ${NEXT}"
+          fi
+          # Always push the branch first so the tagged commit is reachable
+          # from the remote branch, then push the tag itself.
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin "v${RELEASE}"
+
+      # -----------------------------------------------------------------------
+      # 9. GitHub Release
+      # -----------------------------------------------------------------------
+      - name: Create GitHub Release
+        if: ${{ inputs.dry_run == false }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE: ${{ steps.versions.outputs.release }}
+          IS_PRERELEASE: ${{ steps.versions.outputs.is_prerelease }}
+        run: |
+          set -euo pipefail
+          args=(--title "v${RELEASE}" --generate-notes)
+          if [[ "${IS_PRERELEASE}" == "true" ]]; then
+            args+=(--prerelease)
+          fi
+          gh release create "v${RELEASE}" "${args[@]}"
+
+      - name: Summary
+        run: |
+          {
+            echo "### Release ${{ steps.versions.outputs.release }}"
+            echo ""
+            echo "- Dry run: ${{ inputs.dry_run }}"
+            echo "- Next development version: ${{ steps.versions.outputs.next }}"
+            echo "- Maven Central: https://central.sonatype.com/search?q=io.github.rrobetti"
+          } >> "$GITHUB_STEP_SUMMARY"

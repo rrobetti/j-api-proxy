@@ -7,6 +7,8 @@
   <version>0.1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>j-api-proxy aggregator</name>
+  <description>Aggregator build for j-api-proxy, a lightweight proxy layer for Java APIs such as JDBC and JMS.</description>
+  <url>https://github.com/rrobetti/j-api-proxy</url>
 
   <licenses>
     <license>
@@ -16,6 +18,20 @@
     </license>
   </licenses>
 
+  <developers>
+    <developer>
+      <id>rrobetti</id>
+      <name>Rogerio Robetti</name>
+      <url>https://github.com/rrobetti</url>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:https://github.com/rrobetti/j-api-proxy.git</connection>
+    <developerConnection>scm:git:git@github.com:rrobetti/j-api-proxy.git</developerConnection>
+    <url>https://github.com/rrobetti/j-api-proxy</url>
+  </scm>
+
   <modules>
     <module>j-api-proxy-parent</module>
     <module>j-api-proxy-core</module>
@@ -24,4 +40,87 @@
     <module>j-api-proxy-bom</module>
     <module>j-api-proxy</module>
   </modules>
+  <profiles>
+    <!--
+      Release profile: activated with -Prelease by the release workflow.
+      Attaches sources and javadoc jars, signs all artifacts with GPG and
+      publishes them to Maven Central through the Sonatype Central portal.
+      Required secrets: SONATYPE_USERNAME, SONATYPE_PASSWORD,
+      GPG_PRIVATE_KEY, GPG_PASSPHRASE. See docs/ci-cd.md.
+    -->
+    <profile>
+      <id>release</id>
+      <build>
+        <plugins>
+          <!-- Sources jar - required by Maven Central -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>3.3.1</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <!-- Javadoc jar - required by Maven Central -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>3.11.2</version>
+            <configuration>
+              <doclint>none</doclint>
+              <failOnWarnings>false</failOnWarnings>
+            </configuration>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <!-- GPG signing - required by Maven Central -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>3.2.7</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+                <configuration>
+                  <!-- loopback mode is required for non-interactive CI environments -->
+                  <gpgArguments>
+                    <arg>--pinentry-mode</arg>
+                    <arg>loopback</arg>
+                  </gpgArguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <!-- Sonatype Central publishing -->
+          <plugin>
+            <groupId>org.sonatype.central</groupId>
+            <artifactId>central-publishing-maven-plugin</artifactId>
+            <version>0.8.0</version>
+            <extensions>true</extensions>
+            <configuration>
+              <!-- Must match the server id configured in the Maven settings.xml -->
+              <publishingServerId>central</publishingServerId>
+              <autoPublish>true</autoPublish>
+              <waitForPublishing>true</waitForPublishing>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

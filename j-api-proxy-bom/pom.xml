@@ -11,6 +11,7 @@
   <artifactId>j-api-proxy-bom</artifactId>
   <packaging>pom</packaging>
   <name>j-api-proxy bom</name>
+  <description>Bill of materials managing the versions of all j-api-proxy modules.</description>
 
   <licenses>
     <license>

@@ -1,5 +1,7 @@
 # j-api-proxy (J API Proxy)
 
+[![Main CI](https://github.com/rrobetti/j-api-proxy/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/rrobetti/j-api-proxy/actions/workflows/main.yml)
+
 A small, general-purpose filter-chain core built on JDK dynamic proxies, plus recursive adapters
 that automatically apply it across a JDBC or Jakarta JMS object graph — including XA resources.
 
@@ -326,6 +328,12 @@ mvn test
 
 runs the full test suite (core, JDBC, Jakarta JMS) using hand-written fakes/test doubles only — no
 database, broker, or Docker daemon is required.
+
+## CI/CD and releases
+
+Continuous integration builds and tests every push to `main` and every approved pull request.
+Releases are published to Maven Central on demand, after approval by @rrobetti.
+See [docs/ci-cd.md](docs/ci-cd.md) for details.
 
 ## License
 

@@ -10,6 +10,7 @@
   </parent>
   <artifactId>j-api-proxy</artifactId>
   <name>j-api-proxy convenience</name>
+  <description>Convenience aggregate artifact pulling in the commonly used j-api-proxy modules.</description>
 
   <licenses>
     <license>
