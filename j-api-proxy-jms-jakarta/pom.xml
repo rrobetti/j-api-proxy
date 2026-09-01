@@ -10,6 +10,7 @@
   </parent>
   <artifactId>j-api-proxy-jms-jakarta</artifactId>
   <name>j-api-proxy Jakarta JMS</name>
+  <description>Jakarta JMS proxy support for j-api-proxy: ConnectionFactory, Session, producer and consumer interception.</description>
 
   <licenses>
     <license>

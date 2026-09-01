@@ -10,6 +10,7 @@
   </parent>
   <artifactId>j-api-proxy-jdbc</artifactId>
   <name>j-api-proxy jdbc</name>
+  <description>JDBC proxy support for j-api-proxy: DataSource, Connection, Statement and ResultSet interception.</description>
 
   <licenses>
     <license>

@@ -327,6 +327,12 @@ mvn test
 runs the full test suite (core, JDBC, Jakarta JMS) using hand-written fakes/test doubles only — no
 database, broker, or Docker daemon is required.
 
+## CI/CD and releases
+
+Continuous integration builds and tests every push to `main` and every approved pull request.
+Releases are published to Maven Central on demand, after approval by @rrobetti.
+See [docs/ci-cd.md](docs/ci-cd.md) for details.
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).
