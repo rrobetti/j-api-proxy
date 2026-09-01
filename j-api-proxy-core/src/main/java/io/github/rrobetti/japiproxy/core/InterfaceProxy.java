@@ -76,6 +76,11 @@ public final class InterfaceProxy {
         /**
          * Adds an invocation filter.
          *
+         * <p>Filters added here are ignored when {@link #proxyContext(ProxyContext)} is also used,
+         * because a shared {@link ProxyContext} already owns its own filter chain. Combining the two
+         * throws {@link IllegalStateException} at {@link #build()} time instead of silently dropping
+         * filters; add filters directly to the shared {@link ProxyContext} instead.
+         *
          * @param filter the filter to add
          * @return this builder
          */
@@ -134,8 +139,16 @@ public final class InterfaceProxy {
          * Builds the proxy.
          *
          * @return the created proxy
+         * @throws IllegalStateException if both {@link #filter(InvocationFilter)} and
+         *         {@link #proxyContext(ProxyContext)} were used, since the shared context's own
+         *         filter chain would otherwise silently take precedence over builder-supplied filters
          */
         public T build() {
+            if (proxyContext != null && !filters.isEmpty()) {
+                throw new IllegalStateException(
+                        "Builder.filter(...) cannot be combined with an explicit proxyContext(...); "
+                                + "add filters to the shared ProxyContext instead.");
+            }
             ProxyContext context = proxyContext != null ? proxyContext : new ProxyContext(resourceName, filters);
             return context.wrap(delegate, interfaceType, null, returnValueAdapter, argumentAdapter,
                     additionalInterfaces.toArray(Class<?>[]::new));

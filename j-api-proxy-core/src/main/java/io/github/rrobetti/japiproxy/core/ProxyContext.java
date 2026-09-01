@@ -82,7 +82,9 @@ public final class ProxyContext {
         }
 
         Object rawDelegate = delegate instanceof ProxyHandle proxyHandle ? proxyHandle.delegate() : delegate;
-        purgeStaleEntries();
+        // Cache lookup and proxy creation must happen as a single atomic operation under
+        // cacheMonitor so concurrent callers wrapping the same delegate always observe (or
+        // create) exactly one proxy instance, preserving stable proxy identity.
         synchronized (cacheMonitor) {
             for (int index = 0; index < cacheEntries.size(); index++) {
                 CacheEntry entry = cacheEntries.get(index);
