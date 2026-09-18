@@ -291,7 +291,7 @@ inferred from it.
 ## One filter used across JDBC, JMS, and XA
 
 ```java
-MonitoringFilter monitoring = new MonitoringFilter(); // io.github.rrobetti.japiproxy.core.examples
+MonitoringFilter monitoring = new MonitoringFilter(); // io.github.rrobetti.japiproxy
 
 DataSource jdbc = JdbcProxy.wrap(vendorDataSource, "orders-db", monitoring);
 ConnectionFactory jms = JmsProxy.wrap(vendorConnectionFactory, "payments-mq", monitoring);

@@ -1,4 +1,4 @@
-package io.github.rrobetti.japiproxy.core.examples;
+package io.github.rrobetti.japiproxy;
 
 import io.github.rrobetti.japiproxy.core.InvocationChain;
 import io.github.rrobetti.japiproxy.core.InvocationContext;

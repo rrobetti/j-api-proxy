@@ -1678,8 +1678,8 @@ class JmsProxyTest {
 
     @Test
     void sharedMonitoringFilterObservesJmsCallsAcrossTheGraph() throws JMSException {
-        io.github.rrobetti.japiproxy.core.examples.MonitoringFilter monitoring =
-                new io.github.rrobetti.japiproxy.core.examples.MonitoringFilter();
+        io.github.rrobetti.japiproxy.MonitoringFilter monitoring =
+                new io.github.rrobetti.japiproxy.MonitoringFilter();
         FakeConnectionFactory delegate = new FakeConnectionFactory();
 
         ConnectionFactory wrapped = JmsProxy.wrap(delegate, "orders", monitoring);
