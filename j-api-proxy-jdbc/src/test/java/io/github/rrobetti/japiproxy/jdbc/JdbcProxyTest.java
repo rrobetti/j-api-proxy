@@ -220,8 +220,8 @@ class JdbcProxyTest {
 
     @Test
     void sharedMonitoringFilterObservesJdbcCallsAcrossTheGraph() throws Exception {
-        io.github.rrobetti.japiproxy.core.examples.MonitoringFilter monitoring =
-                new io.github.rrobetti.japiproxy.core.examples.MonitoringFilter();
+        io.github.rrobetti.japiproxy.MonitoringFilter monitoring =
+                new io.github.rrobetti.japiproxy.MonitoringFilter();
         FakeDataSource delegate = new FakeDataSource();
         DataSource dataSource = JdbcProxy.wrap(delegate, "orders", monitoring);
 
